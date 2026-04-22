@@ -1,11 +1,7 @@
-import * as SibApiV3Sdk from '@getbrevo/brevo'
+import { BrevoClient } from '@getbrevo/brevo'
 import type { AnalysisResult } from '@/types/analysis'
 
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi()
-apiInstance.setApiKey(
-  SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_API_KEY!
-)
+const brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY! })
 
 const STATUS_EMOJI = { pass: '✅', warning: '⚠️', fail: '❌' }
 
@@ -53,14 +49,13 @@ function buildReportHtml(result: AnalysisResult): string {
 }
 
 export async function sendReportEmail(toEmail: string, result: AnalysisResult): Promise<void> {
-  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail()
-  sendSmtpEmail.sender = {
-    email: process.env.BREVO_FROM_EMAIL!,
-    name: process.env.BREVO_FROM_NAME ?? 'CV Analyzer',
-  }
-  sendSmtpEmail.to = [{ email: toEmail }]
-  sendSmtpEmail.subject = `Ton rapport CV — Score ${result.score}/100 (${result.level})`
-  sendSmtpEmail.htmlContent = buildReportHtml(result)
-
-  await apiInstance.sendTransacEmail(sendSmtpEmail)
+  await brevo.transactionalEmails.sendTransacEmail({
+    sender: {
+      email: process.env.BREVO_FROM_EMAIL!,
+      name: process.env.BREVO_FROM_NAME ?? 'CV Analyzer',
+    },
+    to: [{ email: toEmail }],
+    subject: `Ton rapport CV — Score ${result.score}/100 (${result.level})`,
+    htmlContent: buildReportHtml(result),
+  })
 }
