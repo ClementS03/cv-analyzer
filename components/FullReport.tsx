@@ -15,10 +15,18 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 export function FullReport({ result }: { result: AnalysisResult }) {
+  const CATEGORY_MAP: Record<string, string> = {
+    'essential-sections': 'ats', 'no-complex-formatting': 'ats', 'date-consistency': 'ats',
+    'quantification': 'content', 'action-verbs': 'content', 'buzzwords': 'content', 'repetition': 'content',
+    'length': 'style', 'contact-info': 'style', 'tense-consistency': 'style',
+    'weakest-sections': 'impact', 'overall-impact': 'impact',
+  }
+
   const byCategory = result.checks.reduce<Record<string, typeof result.checks>>(
     (acc, check) => {
-      if (!acc[check.category]) acc[check.category] = []
-      acc[check.category].push(check)
+      const cat = check.category || CATEGORY_MAP[check.id] || 'ats'
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(check)
       return acc
     },
     {}
