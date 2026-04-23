@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
-import { extractTextFromPDF, validatePDFSize } from '@/lib/parse-pdf'
+import { extractTextFromPDF, validatePDFSize, validateCVContent } from '@/lib/parse-pdf'
 import { analyzeCV } from '@/lib/analyze'
 import { storeAnalysis } from '@/lib/kv'
 
@@ -17,13 +17,7 @@ export async function POST(req: NextRequest) {
     validatePDFSize(buffer)
 
     const cvText = await extractTextFromPDF(buffer)
-
-    if (cvText.length < 100) {
-      return NextResponse.json(
-        { error: 'Le PDF semble vide ou non lisible' },
-        { status: 400 }
-      )
-    }
+    validateCVContent(cvText)
 
     const result = await analyzeCV(cvText)
     const id = randomUUID()

@@ -22,7 +22,7 @@ export function UploadZone({ onPreview }: UploadZoneProps) {
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
-      setError('Fichier PDF uniquement')
+      setError('Format invalide — ton CV doit être en PDF. Exporte-le depuis Word, LibreOffice ou Canva en "Enregistrer sous → PDF".')
       return
     }
 
