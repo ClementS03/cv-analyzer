@@ -46,11 +46,9 @@ export function validateCVContent(text: string): void {
     ],
   }
 
-  const scores = Object.entries(indicators).map(([, patterns]) =>
-    patterns.some((p) => p.test(lower)) ? 1 : 0
-  )
-
-  const matched = scores.reduce((a, b) => a + b, 0)
+  const matched = Object.values(indicators).filter((patterns) =>
+    patterns.some((p) => p.test(lower))
+  ).length
 
   if (matched < 2) {
     throw new Error("Ce document ne ressemble pas à un CV. Assure-toi d'uploader ton CV en PDF avec tes informations personnelles, expériences et formations.")
