@@ -1,53 +1,52 @@
-// lib/analyze.ts
 import Anthropic from '@anthropic-ai/sdk'
 import type { AnalysisResult, Check, CVLanguage } from '@/types/analysis'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
-  dangerouslyAllowBrowser: true,
 })
 
-const SYSTEM_PROMPT = `Tu es un expert en recrutement et optimisation de CV. Tu analyses des CV et fournis un retour structuré en JSON.
+const SYSTEM_PROMPT = `You are an expert recruiter and CV coach. You analyse CVs and provide structured feedback in JSON format.
 
-Voici les 12 checks que tu dois effectuer :
+LANGUAGE DETECTION: Read the CV text carefully. If it is primarily written in English, set "language" to "en". If it is primarily in French, set "language" to "fr".
 
-Checks à effectuer (chaque check doit inclure le champ "category" avec la valeur indiquée) :
+IMPORTANT: ALL text fields you produce (title, feedback, suggestions, topIntro, topActions) must be in the detected language. If the CV is in English, respond in English. If French, respond in French.
+
+TONE: Adopt the voice of a supportive career coach — encouraging, specific, and constructive. Never judgmental, preachy, or condescending. Frame issues as opportunities. Avoid implying the candidate is naive or careless. A CV is a personal document someone spent time on — treat it with respect.
+
+Perform the following 12 checks. Each check must include the "category" field shown:
 
 category "ats":
-1. essential-sections : Présence de Contact, Expérience, Formation, Compétences
-2. no-complex-formatting : Absence de tableaux, colonnes multiples, images textuelles
-3. date-consistency : Cohérence du format des dates (MM/YYYY, YYYY, etc.)
+1. essential-sections: Presence of Contact, Experience, Education, Skills
+2. no-complex-formatting: Absence of tables, multi-column layouts, text images
+3. date-consistency: Consistency of date format (MM/YYYY, YYYY, etc.)
 
 category "content":
-4. quantification : Pourcentage d'achievements avec des chiffres concrets
-5. action-verbs : Pourcentage de bullets démarrant par un verbe d'action fort
-6. buzzwords : Présence de clichés ("passionné", "team player", "dynamique", "motivé", "rigoureux", "polyvalent")
-7. repetition : Mots répétés excessivement (3+ fois sans raison)
+4. quantification: Percentage of achievements with concrete numbers
+5. action-verbs: Percentage of bullets starting with a strong action verb
+6. buzzwords: Presence of vague filler phrases ("passionate", "team player", "dynamic", "motivated", "rigorous", "versatile", "passionné", "dynamique", "motivé")
+7. repetition: Words repeated excessively (3+ times without reason)
 
 category "style":
-8. length : Longueur adaptée (1 page junior <3 ans, 2 pages senior, 3+ pages = trop long)
-9. contact-info : Email professionnel, présence de LinkedIn ou GitHub
-10. tense-consistency : Cohérence des temps verbaux dans les expériences
+8. length: Appropriate length (1 page junior <3 yrs, 2 pages senior, 3+ pages = too long)
+9. contact-info: Professional email, LinkedIn or GitHub present
+10. tense-consistency: Consistent verb tenses in experience sections
 
 category "impact":
-11. weakest-sections : Identification des 3 sections les plus faibles
-12. overall-impact : Évaluation globale
+11. weakest-sections: Identify the 3 weakest sections
+12. overall-impact: Overall evaluation
 
-Pour chaque check, attribue :
-- status: "pass" (>= 70), "warning" (40-69), "fail" (< 40)
-- score: 0-100
-- feedback: 1 phrase concrète sur ce que tu observes
-- suggestions: 1-3 suggestions actionnables et spécifiques
+For each check, provide:
+- status: "pass" (>= 70), "warning" (40–69), "fail" (< 40)
+- score: 0–100
+- feedback: 1 concrete sentence describing what you observe. For "buzzwords", name the specific phrases found and suggest one concrete replacement — do NOT say the CV is "full of clichés".
+- suggestions: 1–3 actionable, specific suggestions. Phrase them as invitations, not commands.
 
-Le score global est la moyenne pondérée des 12 checks.
-Le niveau est : "Passable" (0-49), "Bon" (50-74), "Excellent" (75-100).
-topActions : tableau de 3 strings, les 3 actions les plus impactantes à faire en priorité. Chaque action doit être concrète et inclure un exemple tiré du CV analysé. Format : "Verbe + quoi faire + exemple concret entre guillemets". Ex: ["Chiffre tes résultats : remplace 'géré une équipe' par 'managé 5 développeurs, livré 3 projets en temps', "..."]
+Additional JSON fields:
+- language: "fr" or "en" (detected from the CV text)
+- topIntro: A single warm sentence introducing the 3 priority actions. It should sound like a career coach offering help, not a teacher grading a paper. EN example: "Here are three targeted improvements that could meaningfully strengthen your CV:" / FR example: "Voici trois pistes sur lesquelles je t'invite à travailler pour renforcer ton profil :"
+- topActions: Array of 3 strings. Each must be: specific to THIS CV, achievable in under an hour, framed positively, and reference a real element from the CV. Format: "Verb + what to do + concrete example from the CV". EN example: "Add numbers to your impact: replace 'managed a team' with 'led a team of 5, delivering 3 projects on time'"
 
-Réponds UNIQUEMENT avec du JSON valide, sans markdown.`
-
-function buildUserPrompt(cvText: string): string {
-  return `Voici le CV à analyser :\n\n${cvText.slice(0, 8000)}`
-}
+Respond ONLY with valid JSON. No markdown, no explanation.`
 
 export function scoreToLevel(score: number, language: CVLanguage): string {
   if (language === 'en') {
@@ -60,28 +59,68 @@ export function scoreToLevel(score: number, language: CVLanguage): string {
   return 'Passable'
 }
 
+export function parseAnalysisResponse(rawText: string): AnalysisResult {
+  const raw = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+  const parsed = JSON.parse(raw) as {
+    language?: string
+    topIntro?: string
+    checks: Check[]
+    topActions: (string | { action?: string; rank?: number; impact?: string })[]
+  }
+
+  const language: CVLanguage = parsed.language === 'en' ? 'en' : 'fr'
+
+  const topActions = parsed.topActions.map((a) =>
+    typeof a === 'string' ? a : (a.action ?? JSON.stringify(a))
+  )
+
+  const score = Math.round(
+    parsed.checks.reduce((sum, c) => sum + c.score, 0) / parsed.checks.length
+  )
+
+  const defaultIntro =
+    language === 'en'
+      ? "Here are three targeted improvements that could meaningfully strengthen your CV:"
+      : "Voici trois pistes sur lesquelles je t'invite à travailler pour renforcer ton profil :"
+
+  return {
+    language,
+    score,
+    level: scoreToLevel(score, language),
+    topIntro: parsed.topIntro ?? defaultIntro,
+    checks: parsed.checks,
+    topActions,
+  }
+}
+
 const MOCK_RESULT: AnalysisResult = {
+  language: 'fr',
   score: 67,
   level: 'Bon',
+  topIntro: "Voici trois pistes concrètes pour renforcer ton profil :",
   checks: [
     { id: 'essential-sections', title: 'Sections essentielles', status: 'pass', score: 85, feedback: 'Toutes les sections clés sont présentes.', suggestions: ['Ajoute un résumé professionnel en haut du CV.'], category: 'ats' },
     { id: 'no-complex-formatting', title: 'Formatage ATS', status: 'pass', score: 90, feedback: 'Pas de tableaux ni de colonnes complexes détectés.', suggestions: [], category: 'ats' },
-    { id: 'date-consistency', title: 'Cohérence des dates', status: 'warning', score: 60, feedback: 'Quelques incohérences dans le format des dates.', suggestions: ['Utilise un format uniforme : MM/YYYY partout.'], category: 'ats' },
-    { id: 'quantification', title: 'Chiffres & résultats', status: 'fail', score: 30, feedback: 'Très peu d\'achievements chiffrés.', suggestions: ['Ajoute des % ou €/$ à tes réalisations.', 'Ex: "Augmenté les ventes de 25%"'], category: 'content' },
-    { id: 'action-verbs', title: 'Verbes d\'action', status: 'warning', score: 55, feedback: '40% des bullets commencent par un verbe fort.', suggestions: ['Commence chaque bullet par un verbe : Développé, Géré, Optimisé...'], category: 'content' },
-    { id: 'buzzwords', title: 'Clichés à éviter', status: 'warning', score: 50, feedback: 'Présence de "dynamique" et "motivé".', suggestions: ['Remplace les clichés par des faits concrets.'], category: 'content' },
+    { id: 'date-consistency', title: 'Cohérence des dates', status: 'warning', score: 60, feedback: "Quelques variations dans le format des dates.", suggestions: ['Utilise un format uniforme : MM/YYYY partout.'], category: 'ats' },
+    { id: 'quantification', title: 'Chiffres & résultats', status: 'fail', score: 30, feedback: "Peu de réalisations sont chiffrées — c'est une belle opportunité de te démarquer.", suggestions: ['Ajoute des %, €/$ ou volumes à tes réalisations.', 'Par ex. : "Augmenté les ventes de 25%"'], category: 'content' },
+    { id: 'action-verbs', title: "Verbes d'action", status: 'warning', score: 55, feedback: "40% des bullets commencent par un verbe fort.", suggestions: ['Commence chaque bullet par un verbe : Développé, Géré, Optimisé...'], category: 'content' },
+    { id: 'buzzwords', title: 'Formulations vagues', status: 'warning', score: 50, feedback: 'Les expressions "dynamique" et "motivé" pourraient être rendues plus concrètes.', suggestions: ['Remplace "dynamique" par un exemple : "Lancé 3 initiatives en autonomie en 6 mois"'], category: 'content' },
     { id: 'repetition', title: 'Répétitions', status: 'pass', score: 75, feedback: 'Peu de répétitions excessives.', suggestions: [], category: 'content' },
     { id: 'length', title: 'Longueur', status: 'pass', score: 80, feedback: 'Longueur adaptée au profil.', suggestions: [], category: 'style' },
     { id: 'contact-info', title: 'Coordonnées', status: 'pass', score: 85, feedback: 'Email et LinkedIn présents.', suggestions: ['Ajoute ton GitHub si tu es dans la tech.'], category: 'style' },
     { id: 'tense-consistency', title: 'Temps verbaux', status: 'pass', score: 70, feedback: 'Temps verbaux globalement cohérents.', suggestions: [], category: 'style' },
-    { id: 'weakest-sections', title: 'Sections faibles', status: 'warning', score: 45, feedback: 'Formation et compétences manquent de détails.', suggestions: ['Détaille tes compétences avec le niveau.', 'Ajoute des projets académiques si peu d\'expérience.'], category: 'impact' },
-    { id: 'overall-impact', title: 'Impact global', status: 'warning', score: 60, feedback: 'CV correct mais manque de différenciation.', suggestions: ['Ajoute une section Projets ou Réalisations.', 'Personnalise le CV pour chaque offre.'], category: 'impact' },
+    { id: 'weakest-sections', title: 'Sections à renforcer', status: 'warning', score: 45, feedback: "La formation et les compétences gagneraient à être plus détaillées.", suggestions: ['Détaille tes compétences avec le niveau.', "Ajoute des projets si tu as peu d'expérience."], category: 'impact' },
+    { id: 'overall-impact', title: 'Impact global', status: 'warning', score: 60, feedback: 'CV solide mais qui peut encore se différencier davantage.', suggestions: ['Ajoute une section Projets ou Réalisations.', 'Personnalise le CV pour chaque offre.'], category: 'impact' },
   ],
   topActions: [
-    'Ajoute des chiffres concrets à tes expériences (%, €, volumes)',
-    'Remplace les clichés ("dynamique", "motivé") par des faits',
-    'Uniformise le format de toutes tes dates en MM/YYYY',
+    'Chiffre tes réalisations : remplace "géré une équipe" par "managé 5 développeurs, livré 3 projets dans les délais"',
+    'Remplace "dynamique" par un fait concret : "Lancé 3 initiatives en autonomie en 6 mois"',
+    'Uniformise toutes tes dates au format MM/YYYY',
   ],
+}
+
+function buildUserPrompt(cvText: string): string {
+  return `CV to analyse:\n\n${cvText.slice(0, 8000)}`
 }
 
 export async function analyzeCV(cvText: string): Promise<AnalysisResult> {
@@ -100,27 +139,8 @@ export async function analyzeCV(cvText: string): Promise<AnalysisResult> {
 
   const content = message.content[0]
   if (content.type !== 'text') {
-    throw new Error('Réponse inattendue de Claude')
+    throw new Error('Unexpected response from Claude')
   }
 
-  const raw = content.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
-  const parsed = JSON.parse(raw) as {
-    checks: Check[]
-    topActions: (string | { action?: string; rank?: number; impact?: string } )[]
-  }
-
-  const topActions = parsed.topActions.map((a) =>
-    typeof a === 'string' ? a : (a.action ?? JSON.stringify(a))
-  )
-
-  const score = Math.round(
-    parsed.checks.reduce((sum, c) => sum + c.score, 0) / parsed.checks.length
-  )
-
-  return {
-    score,
-    level: scoreToLevel(score, 'fr'),
-    checks: parsed.checks,
-    topActions,
-  }
+  return parseAnalysisResponse(content.text)
 }

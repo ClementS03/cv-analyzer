@@ -1,5 +1,18 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest'
 import { scoreToLevel } from './analyze'
+import { parseAnalysisResponse } from './analyze'
+import type { Check } from '@/types/analysis'
+
+const mockCheck: Check = {
+  id: 'essential-sections',
+  title: 'Essential sections',
+  status: 'pass',
+  score: 80,
+  feedback: 'All key sections are present.',
+  suggestions: [],
+  category: 'ats',
+}
 
 describe('scoreToLevel', () => {
   describe('French labels', () => {
@@ -34,5 +47,76 @@ describe('scoreToLevel', () => {
       expect(scoreToLevel(0, 'en')).toBe('Poor')
       expect(scoreToLevel(49, 'en')).toBe('Poor')
     })
+  })
+})
+
+describe('parseAnalysisResponse', () => {
+  it('extracts language and topIntro from Claude JSON', () => {
+    const raw = JSON.stringify({
+      language: 'en',
+      topIntro: 'Here are three changes to strengthen your CV:',
+      checks: [mockCheck],
+      topActions: ['Add numbers to your achievements'],
+    })
+    const result = parseAnalysisResponse(raw)
+    expect(result.language).toBe('en')
+    expect(result.topIntro).toBe('Here are three changes to strengthen your CV:')
+  })
+
+  it('defaults language to fr when missing from JSON', () => {
+    const raw = JSON.stringify({
+      checks: [mockCheck],
+      topActions: ['Ajoute des chiffres'],
+    })
+    const result = parseAnalysisResponse(raw)
+    expect(result.language).toBe('fr')
+  })
+
+  it('uses a default topIntro when missing from JSON', () => {
+    const raw = JSON.stringify({
+      language: 'en',
+      checks: [mockCheck],
+      topActions: ['Add numbers'],
+    })
+    const result = parseAnalysisResponse(raw)
+    expect(result.topIntro).toBeTruthy()
+    expect(result.topIntro.length).toBeGreaterThan(10)
+  })
+
+  it('strips markdown code fences before parsing', () => {
+    const raw = '```json\n' + JSON.stringify({
+      language: 'fr',
+      topIntro: 'Voici trois axes :',
+      checks: [mockCheck],
+      topActions: ['Ajoute des chiffres'],
+    }) + '\n```'
+    const result = parseAnalysisResponse(raw)
+    expect(result.language).toBe('fr')
+  })
+
+  it('computes score as average of check scores', () => {
+    const checks: Check[] = [
+      { ...mockCheck, score: 60 },
+      { ...mockCheck, id: 'length', score: 80 },
+    ]
+    const raw = JSON.stringify({
+      language: 'fr',
+      topIntro: 'Voici trois axes :',
+      checks,
+      topActions: ['Action 1'],
+    })
+    const result = parseAnalysisResponse(raw)
+    expect(result.score).toBe(70)
+  })
+
+  it('normalises topActions that are objects instead of strings', () => {
+    const raw = JSON.stringify({
+      language: 'fr',
+      topIntro: 'Voici trois axes :',
+      checks: [mockCheck],
+      topActions: [{ action: 'Ajoute des chiffres', rank: 1 }],
+    })
+    const result = parseAnalysisResponse(raw)
+    expect(result.topActions[0]).toBe('Ajoute des chiffres')
   })
 })
