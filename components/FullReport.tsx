@@ -1,26 +1,47 @@
 import { CheckItem } from './CheckItem'
 import type { AnalysisResult } from '@/types/analysis'
 
-const LEVEL_COLOR: Record<string, string> = {
-  'Passable': 'text-red-500',
-  'Bon': 'text-yellow-500',
-  'Excellent': 'text-green-500',
+const CATEGORY_LABELS: Record<string, Record<string, string>> = {
+  fr: {
+    ats: 'Compatibilité ATS',
+    content: 'Contenu',
+    style: 'Style & Format',
+    impact: 'Impact global',
+  },
+  en: {
+    ats: 'ATS Compatibility',
+    content: 'Content',
+    style: 'Style & Format',
+    impact: 'Overall Impact',
+  },
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  ats: 'Compatibilité ATS',
-  content: 'Contenu',
-  style: 'Style & Format',
-  impact: 'Impact global',
+const LEVEL_COLOR: Record<string, string> = {
+  Passable: 'text-red-500',
+  Bon: 'text-yellow-500',
+  Excellent: 'text-green-500',
+  Poor: 'text-red-500',
+  Good: 'text-yellow-500',
+}
+
+const CATEGORY_MAP: Record<string, string> = {
+  'essential-sections': 'ats',
+  'no-complex-formatting': 'ats',
+  'date-consistency': 'ats',
+  quantification: 'content',
+  'action-verbs': 'content',
+  buzzwords: 'content',
+  repetition: 'content',
+  length: 'style',
+  'contact-info': 'style',
+  'tense-consistency': 'style',
+  'weakest-sections': 'impact',
+  'overall-impact': 'impact',
 }
 
 export function FullReport({ result }: { result: AnalysisResult }) {
-  const CATEGORY_MAP: Record<string, string> = {
-    'essential-sections': 'ats', 'no-complex-formatting': 'ats', 'date-consistency': 'ats',
-    'quantification': 'content', 'action-verbs': 'content', 'buzzwords': 'content', 'repetition': 'content',
-    'length': 'style', 'contact-info': 'style', 'tense-consistency': 'style',
-    'weakest-sections': 'impact', 'overall-impact': 'impact',
-  }
+  const labels = CATEGORY_LABELS[result.language] ?? CATEGORY_LABELS['fr']
+  const actionsTitle = result.language === 'en' ? '3 priority actions' : '3 actions prioritaires'
 
   const byCategory = result.checks.reduce<Record<string, typeof result.checks>>(
     (acc, check) => {
@@ -37,13 +58,18 @@ export function FullReport({ result }: { result: AnalysisResult }) {
       <div className="text-center space-y-1">
         <div className="text-7xl font-bold text-gray-800">{result.score}</div>
         <div className="text-gray-400 text-sm">/ 100</div>
-        <div className={`text-xl font-semibold ${LEVEL_COLOR[result.level]}`}>
+        <div className={`text-xl font-semibold ${LEVEL_COLOR[result.level] ?? 'text-gray-700'}`}>
           {result.level}
         </div>
       </div>
 
       <div className="bg-blue-50 rounded-xl p-5">
-        <h2 className="font-semibold text-blue-800 mb-3">🎯 3 actions prioritaires</h2>
+        <h2 className="font-semibold text-blue-800 mb-1">
+          <span aria-hidden="true">🎯 </span><span>{actionsTitle}</span>
+        </h2>
+        {result.topIntro && (
+          <p className="text-sm text-blue-600 mb-3 italic">{result.topIntro}</p>
+        )}
         <ol className="space-y-2">
           {result.topActions.map((action, i) => (
             <li key={i} className="flex gap-3 text-sm text-blue-700">
@@ -54,13 +80,13 @@ export function FullReport({ result }: { result: AnalysisResult }) {
         </ol>
       </div>
 
-      {Object.keys(CATEGORY_LABELS).map((cat) => {
+      {Object.keys(labels).map((cat) => {
         const checks = byCategory[cat]
         if (!checks?.length) return null
         return (
           <div key={cat} className="space-y-3">
             <h2 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">
-              {CATEGORY_LABELS[cat]}
+              {labels[cat]}
             </h2>
             {checks.map((check) => (
               <CheckItem key={check.id} check={check} />
