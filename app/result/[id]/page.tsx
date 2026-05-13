@@ -39,12 +39,14 @@ export default async function ResultPage({ params, searchParams }: Props) {
     )
   }
 
+  const pageTitle = result.language === 'en' ? 'Your full report' : 'Ton rapport complet'
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-16 space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">Ton rapport complet</h1>
-          <p className="text-sm text-gray-400">Rapport envoyé par email · Valable 2h</p>
+          <h1 className="text-3xl font-bold text-gray-900">{pageTitle}</h1>
+          <p className="text-sm text-gray-400">Rapport envoyé par email · Valable 2h sur cette page</p>
           <a href="/" className="text-sm text-blue-500 hover:underline block">
             ← Analyser un autre CV
           </a>
