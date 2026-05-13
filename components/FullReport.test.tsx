@@ -21,6 +21,15 @@ const enResult: AnalysisResult = {
   topActions: ['Action 1', 'Action 2', 'Action 3'],
 }
 
+const unknownLevelResult: AnalysisResult = {
+  language: 'fr',
+  score: 50,
+  level: 'Unknown',
+  topIntro: 'Voici des pistes :',
+  checks: [],
+  topActions: ['Action 1', 'Action 2', 'Action 3'],
+}
+
 describe('FullReport', () => {
   it('renders the topIntro sentence', () => {
     render(<FullReport result={frResult} />)
@@ -52,5 +61,16 @@ describe('FullReport', () => {
   it('renders the level', () => {
     render(<FullReport result={frResult} />)
     expect(screen.getByText('Bon')).toBeInTheDocument()
+  })
+
+  it('renders the EN topIntro sentence', () => {
+    render(<FullReport result={enResult} />)
+    expect(screen.getByText('Here are three improvements to strengthen your CV:')).toBeInTheDocument()
+  })
+
+  it('falls back to gray color for unknown level', () => {
+    render(<FullReport result={unknownLevelResult} />)
+    const levelEl = screen.getByText('Unknown')
+    expect(levelEl).toHaveClass('text-gray-700')
   })
 })
