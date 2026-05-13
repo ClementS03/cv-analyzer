@@ -1,9 +1,10 @@
 // lib/analyze.ts
 import Anthropic from '@anthropic-ai/sdk'
-import type { AnalysisResult, Check } from '@/types/analysis'
+import type { AnalysisResult, Check, CVLanguage } from '@/types/analysis'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  dangerouslyAllowBrowser: true,
 })
 
 const SYSTEM_PROMPT = `Tu es un expert en recrutement et optimisation de CV. Tu analyses des CV et fournis un retour structuré en JSON.
@@ -48,7 +49,12 @@ function buildUserPrompt(cvText: string): string {
   return `Voici le CV à analyser :\n\n${cvText.slice(0, 8000)}`
 }
 
-function scoreToLevel(score: number): AnalysisResult['level'] {
+export function scoreToLevel(score: number, language: CVLanguage): string {
+  if (language === 'en') {
+    if (score >= 75) return 'Excellent'
+    if (score >= 50) return 'Good'
+    return 'Poor'
+  }
   if (score >= 75) return 'Excellent'
   if (score >= 50) return 'Bon'
   return 'Passable'
@@ -113,7 +119,7 @@ export async function analyzeCV(cvText: string): Promise<AnalysisResult> {
 
   return {
     score,
-    level: scoreToLevel(score),
+    level: scoreToLevel(score, 'fr'),
     checks: parsed.checks,
     topActions,
   }
