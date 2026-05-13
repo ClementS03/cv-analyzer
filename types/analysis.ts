@@ -1,8 +1,6 @@
-// types/analysis.ts
-
+export type CVLanguage = 'fr' | 'en'
 export type CheckCategory = 'ats' | 'content' | 'style' | 'impact'
 export type CheckStatus = 'pass' | 'warning' | 'fail'
-export type AnalysisLevel = 'Passable' | 'Bon' | 'Excellent'
 
 export interface Check {
   id: string
@@ -15,14 +13,16 @@ export interface Check {
 }
 
 export interface AnalysisResult {
+  language: CVLanguage
   score: number // 0-100
-  level: AnalysisLevel
+  level: string // computed by scoreToLevel(score, language)
+  topIntro: string
   checks: Check[]
-  topActions: string[] // 3 actions prioritaires
+  topActions: string[]
 }
 
 export interface StoredAnalysis {
   result: AnalysisResult
-  paidAt?: number // timestamp unix
+  paidAt?: number
   createdAt: number
 }
