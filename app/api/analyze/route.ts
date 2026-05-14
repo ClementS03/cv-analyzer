@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
-import { extractTextFromPDF, validatePDFSize, validateCVContent } from '@/lib/parse-pdf'
+import { extractTextFromPDF, validatePDFSize, validatePDFMagicBytes, validateCVContent } from '@/lib/parse-pdf'
 import { analyzeCV } from '@/lib/analyze'
 import { storeAnalysis } from '@/lib/kv'
 import { UserFacingError } from '@/lib/errors'
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer())
     validatePDFSize(buffer)
-
+    validatePDFMagicBytes(buffer)
     const cvText = await extractTextFromPDF(buffer)
     validateCVContent(cvText)
 

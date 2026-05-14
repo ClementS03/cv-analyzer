@@ -12,6 +12,12 @@ export function validatePDFSize(buffer: Buffer): void {
   }
 }
 
+export function validatePDFMagicBytes(buffer: Buffer): void {
+  if (buffer.length < 4 || buffer.slice(0, 4).toString('binary') !== '%PDF') {
+    throw new UserFacingError('Le fichier n\'est pas un PDF valide.')
+  }
+}
+
 export function validateCVContent(text: string): void {
   if (text.trim().length < 100) {
     throw new UserFacingError(
