@@ -120,3 +120,24 @@ describe('parseAnalysisResponse', () => {
     expect(result.topActions[0]).toBe('Ajoute des chiffres')
   })
 })
+
+describe('parseAnalysisResponse shape validation', () => {
+  it('rejects a response with no checks field', () => {
+    const raw = JSON.stringify({ language: 'en', topIntro: 'hi', topActions: ['a'] })
+    expect(() => parseAnalysisResponse(raw)).toThrow('checks must be a non-empty array')
+  })
+
+  it('rejects a response with empty checks array', () => {
+    const raw = JSON.stringify({ language: 'en', topIntro: 'hi', checks: [], topActions: ['a'] })
+    expect(() => parseAnalysisResponse(raw)).toThrow('checks must be a non-empty array')
+  })
+
+  it('rejects a response where topActions is not an array', () => {
+    const raw = JSON.stringify({
+      language: 'en', topIntro: 'hi',
+      checks: [mockCheck],
+      topActions: 'not an array',
+    })
+    expect(() => parseAnalysisResponse(raw)).toThrow('topActions must be an array')
+  })
+})

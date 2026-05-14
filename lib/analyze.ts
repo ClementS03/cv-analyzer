@@ -66,21 +66,23 @@ export function scoreToLevel(score: number, language: CVLanguage): string {
 
 export function parseAnalysisResponse(rawText: string): AnalysisResult {
   const raw = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
-  const parsed = JSON.parse(raw) as {
-    language?: string
-    topIntro?: string
-    checks: Check[]
-    topActions: (string | { action?: string; rank?: number; impact?: string })[]
+  const parsed = JSON.parse(raw) as Record<string, unknown>
+
+  if (!Array.isArray(parsed.checks) || (parsed.checks as unknown[]).length === 0) {
+    throw new Error('Invalid response: checks must be a non-empty array')
+  }
+  if (!Array.isArray(parsed.topActions)) {
+    throw new Error('Invalid response: topActions must be an array')
   }
 
   const language: CVLanguage = parsed.language === 'en' ? 'en' : 'fr'
-
-  const topActions = parsed.topActions.map((a) =>
+  const checks = parsed.checks as Check[]
+  const topActions = (parsed.topActions as (string | { action?: string; rank?: number; impact?: string })[]).map((a) =>
     typeof a === 'string' ? a : (a.action ?? JSON.stringify(a))
   )
 
   const score = Math.round(
-    parsed.checks.reduce((sum, c) => sum + c.score, 0) / parsed.checks.length
+    checks.reduce((sum, c) => sum + c.score, 0) / checks.length
   )
 
   const defaultIntro =
@@ -92,8 +94,8 @@ export function parseAnalysisResponse(rawText: string): AnalysisResult {
     language,
     score,
     level: scoreToLevel(score, language),
-    topIntro: parsed.topIntro ?? defaultIntro,
-    checks: parsed.checks,
+    topIntro: typeof parsed.topIntro === 'string' ? parsed.topIntro : defaultIntro,
+    checks,
     topActions,
   }
 }
@@ -125,7 +127,7 @@ const MOCK_RESULT: AnalysisResult = {
 }
 
 function buildUserPrompt(cvText: string): string {
-  return `CV to analyse:\n\n${cvText.slice(0, 8000)}`
+  return `<cv_content>\n${cvText.slice(0, 8000)}\n</cv_content>\n\nAnalyse the CV above.`
 }
 
 export async function analyzeCV(cvText: string): Promise<AnalysisResult> {
