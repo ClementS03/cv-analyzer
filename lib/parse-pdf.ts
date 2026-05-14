@@ -13,7 +13,7 @@ export function validatePDFSize(buffer: Buffer): void {
 }
 
 export function validatePDFMagicBytes(buffer: Buffer): void {
-  if (buffer.length < 4 || buffer.slice(0, 4).toString('binary') !== '%PDF') {
+  if (buffer.length < 4 || buffer.subarray(0, 4).toString('latin1') !== '%PDF') {
     throw new UserFacingError('Le fichier n\'est pas un PDF valide.')
   }
 }

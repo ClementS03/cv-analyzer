@@ -17,6 +17,7 @@ describe('validatePDFMagicBytes', () => {
   it('throws UserFacingError for a non-PDF buffer', () => {
     const buf = Buffer.from('PK\x03\x04fake zip content')
     expect(() => validatePDFMagicBytes(buf)).toThrow(UserFacingError)
+    expect(() => validatePDFMagicBytes(buf)).toThrow('n\'est pas un PDF valide')
   })
 
   it('throws UserFacingError for an empty buffer', () => {
