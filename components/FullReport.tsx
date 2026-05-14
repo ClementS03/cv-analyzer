@@ -87,8 +87,8 @@ export function FullReport({ result }: { result: AnalysisResult }) {
             <h2 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">
               {labels[cat]}
             </h2>
-            {byCategory[cat].map((check) => (
-              <CheckItem key={check.id} check={check} />
+            {byCategory[cat].map((check, i) => (
+              <CheckItem key={check.id ?? i} check={check} />
             ))}
           </div>
         ))}
