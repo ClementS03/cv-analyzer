@@ -1,4 +1,5 @@
 import pdfParse from 'pdf-parse'
+import { UserFacingError } from './errors'
 
 export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   const data = await pdfParse(buffer)
@@ -6,25 +7,23 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 }
 
 export function validatePDFSize(buffer: Buffer): void {
-  const maxSize = 5 * 1024 * 1024
-  if (buffer.length > maxSize) {
-    throw new Error('Le fichier dépasse 5MB')
+  if (buffer.length > 5 * 1024 * 1024) {
+    throw new UserFacingError('Le fichier dépasse 5MB')
   }
 }
 
 export function validateCVContent(text: string): void {
-  const lower = text.toLowerCase()
-
-  // Detect scanned PDF (almost no text)
   if (text.trim().length < 100) {
-    throw new Error('Ton CV semble être une image scannée. pdf-parse ne peut pas lire les images — exporte ton CV en PDF texte depuis Word, LibreOffice ou Canva.')
+    throw new UserFacingError(
+      'Ton CV semble être une image scannée. pdf-parse ne peut pas lire les images — exporte ton CV en PDF texte depuis Word, LibreOffice ou Canva.'
+    )
   }
 
-  // Check for CV indicators across categories
+  const lower = text.toLowerCase()
   const indicators = {
     contact: [
-      /\b[\w.+-]+@[\w-]+\.[a-z]{2,}\b/i,           // email
-      /(\+?\d[\d\s\-().]{7,}\d)/,                    // phone
+      /\b[\w.+-]+@[\w-]+\.[a-z]{2,}\b/i,
+      /(\+?\d[\d\s\-().]{7,}\d)/,
       /linkedin\.com/i,
       /github\.com/i,
     ],
@@ -51,6 +50,8 @@ export function validateCVContent(text: string): void {
   ).length
 
   if (matched < 2) {
-    throw new Error("Ce document ne ressemble pas à un CV. Assure-toi d'uploader ton CV en PDF avec tes informations personnelles, expériences et formations.")
+    throw new UserFacingError(
+      "Ce document ne ressemble pas à un CV. Assure-toi d'uploader ton CV en PDF avec tes informations personnelles, expériences et formations."
+    )
   }
 }

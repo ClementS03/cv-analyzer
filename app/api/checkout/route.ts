@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createCheckoutSession } from '@/lib/stripe'
 import { getAnalysis } from '@/lib/kv'
+import { UserFacingError } from '@/lib/errors'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +22,10 @@ export async function POST(req: NextRequest) {
     const checkoutUrl = await createCheckoutSession(analysisId)
     return NextResponse.json({ url: checkoutUrl })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erreur interne'
-    return NextResponse.json({ error: message }, { status: 500 })
+    if (err instanceof UserFacingError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    console.error('[checkout]', err)
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 })
   }
 }

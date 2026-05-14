@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAnalysis } from '@/lib/kv'
 import { verifyPayment } from '@/lib/stripe'
+import { UserFacingError } from '@/lib/errors'
 
 export async function GET(
   req: NextRequest,
@@ -33,7 +34,10 @@ export async function GET(
 
     return NextResponse.json(analysis.result)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erreur interne'
-    return NextResponse.json({ error: message }, { status: 500 })
+    if (err instanceof UserFacingError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    console.error('[report]', err)
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 })
   }
 }

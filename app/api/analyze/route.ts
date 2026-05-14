@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { extractTextFromPDF, validatePDFSize, validateCVContent } from '@/lib/parse-pdf'
 import { analyzeCV } from '@/lib/analyze'
 import { storeAnalysis } from '@/lib/kv'
+import { UserFacingError } from '@/lib/errors'
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,7 +36,10 @@ export async function POST(req: NextRequest) {
       totalChecks: result.checks.length,
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erreur interne'
-    return NextResponse.json({ error: message }, { status: 500 })
+    if (err instanceof UserFacingError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    console.error('[analyze]', err)
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 })
   }
 }
