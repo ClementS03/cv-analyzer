@@ -18,7 +18,7 @@ Perform the following 12 checks. Each check must include the "category" field sh
 category "ats":
 1. essential-sections: Presence of Contact, Experience, Education, Skills
 2. no-complex-formatting: Absence of tables, multi-column layouts, text images
-3. date-consistency: Consistency of date format (MM/YYYY, YYYY, etc.)
+3. date-consistency: Consistency of date format throughout the CV. The goal is uniformity — whatever format is used (Month YYYY, MM/YYYY, YYYY, etc.) should be consistent. A single-month role using only "Month YYYY" is perfectly valid and should NOT be flagged. Only flag genuine inconsistencies (mixing formats across different entries).
 
 category "content":
 4. quantification: Percentage of achievements with concrete numbers
