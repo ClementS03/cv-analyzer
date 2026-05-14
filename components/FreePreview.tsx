@@ -13,9 +13,11 @@ interface FreePreviewProps {
 }
 
 const LEVEL_COLOR: Record<string, string> = {
-  'Passable': 'text-red-500',
-  'Bon': 'text-yellow-500',
-  'Excellent': 'text-green-500',
+  Passable: 'text-red-500',
+  Bon: 'text-yellow-500',
+  Excellent: 'text-green-500',
+  Poor: 'text-red-500',
+  Good: 'text-yellow-500',
 }
 
 export function FreePreview({ id, score, level, previewChecks, totalChecks }: FreePreviewProps) {

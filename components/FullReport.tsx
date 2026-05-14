@@ -80,20 +80,18 @@ export function FullReport({ result }: { result: AnalysisResult }) {
         </ol>
       </div>
 
-      {Object.keys(labels).map((cat) => {
-        const checks = byCategory[cat]
-        if (!checks?.length) return null
-        return (
+      {Object.keys(labels)
+        .filter(cat => byCategory[cat]?.length)
+        .map(cat => (
           <div key={cat} className="space-y-3">
             <h2 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">
               {labels[cat]}
             </h2>
-            {checks.map((check) => (
+            {byCategory[cat].map((check) => (
               <CheckItem key={check.id} check={check} />
             ))}
           </div>
-        )
-      })}
+        ))}
     </div>
   )
 }
