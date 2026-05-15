@@ -108,6 +108,67 @@ export function parseAnalysisResponse(rawText: string): AnalysisResult {
   }
 }
 
+interface CheckCorrection {
+  checkId: string
+  feedback?: string
+  suggestions?: string[]
+}
+
+interface CritiqueCorrections {
+  corrections: CheckCorrection[]
+  topActions?: string[]
+  topIntro?: string
+}
+
+export function parseCritiqueResponse(rawText: string): CritiqueCorrections {
+  const raw = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+  const parsed = JSON.parse(raw) as Record<string, unknown>
+
+  const corrections: CheckCorrection[] = Array.isArray(parsed.corrections)
+    ? (parsed.corrections as unknown[])
+        .filter((c): c is Record<string, unknown> => typeof c === 'object' && c !== null)
+        .map((c) => ({
+          checkId: String(c.checkId ?? ''),
+          ...(typeof c.feedback === 'string' ? { feedback: c.feedback } : {}),
+          ...(Array.isArray(c.suggestions)
+            ? { suggestions: (c.suggestions as unknown[]).filter((s): s is string => typeof s === 'string') }
+            : {}),
+        }))
+        .filter((c) => c.checkId !== '')
+    : []
+
+  const result: CritiqueCorrections = { corrections }
+
+  if (Array.isArray(parsed.topActions) && (parsed.topActions as unknown[]).length > 0) {
+    result.topActions = (parsed.topActions as unknown[]).filter((a): a is string => typeof a === 'string')
+  }
+
+  if (typeof parsed.topIntro === 'string' && parsed.topIntro.length > 0) {
+    result.topIntro = parsed.topIntro
+  }
+
+  return result
+}
+
+export function mergeCorrections(result: AnalysisResult, corrections: CritiqueCorrections): AnalysisResult {
+  const checks = result.checks.map((check) => {
+    const correction = corrections.corrections.find((c) => c.checkId === check.id)
+    if (!correction) return check
+    return {
+      ...check,
+      ...(correction.feedback !== undefined ? { feedback: correction.feedback } : {}),
+      ...(correction.suggestions !== undefined ? { suggestions: correction.suggestions } : {}),
+    }
+  })
+
+  return {
+    ...result,
+    checks,
+    ...(corrections.topActions !== undefined ? { topActions: corrections.topActions } : {}),
+    ...(corrections.topIntro !== undefined ? { topIntro: corrections.topIntro } : {}),
+  }
+}
+
 const MOCK_RESULT: AnalysisResult = {
   language: 'fr',
   score: 67,

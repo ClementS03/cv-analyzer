@@ -159,3 +159,172 @@ describe('parseAnalysisResponse shape validation', () => {
     expect(() => parseAnalysisResponse(raw)).toThrow('each check must have a numeric score')
   })
 })
+
+import { parseCritiqueResponse, mergeCorrections } from './analyze'
+import type { AnalysisResult } from '@/types/analysis'
+
+const baseResult: AnalysisResult = {
+  language: 'en',
+  score: 67,
+  level: 'Good',
+  topIntro: 'Original intro',
+  topActions: ['Action 1', 'Action 2', 'Action 3'],
+  checks: [
+    {
+      id: 'date-consistency',
+      category: 'ats',
+      title: 'Date consistency',
+      status: 'warning',
+      score: 55,
+      feedback: 'Original date feedback',
+      suggestions: ['Original suggestion'],
+    },
+    {
+      id: 'buzzwords',
+      category: 'content',
+      title: 'Buzzwords',
+      status: 'warning',
+      score: 50,
+      feedback: 'Buzzword feedback',
+      suggestions: [],
+    },
+  ],
+}
+
+describe('parseCritiqueResponse', () => {
+  it('returns empty corrections when analysis has no problems', () => {
+    const raw = JSON.stringify({ corrections: [] })
+    const result = parseCritiqueResponse(raw)
+    expect(result.corrections).toHaveLength(0)
+    expect(result.topActions).toBeUndefined()
+    expect(result.topIntro).toBeUndefined()
+  })
+
+  it('parses a feedback-only correction', () => {
+    const raw = JSON.stringify({
+      corrections: [{ checkId: 'date-consistency', feedback: 'Corrected feedback' }],
+    })
+    const result = parseCritiqueResponse(raw)
+    expect(result.corrections).toHaveLength(1)
+    expect(result.corrections[0].checkId).toBe('date-consistency')
+    expect(result.corrections[0].feedback).toBe('Corrected feedback')
+    expect(result.corrections[0].suggestions).toBeUndefined()
+  })
+
+  it('parses a suggestions-only correction', () => {
+    const raw = JSON.stringify({
+      corrections: [{ checkId: 'buzzwords', suggestions: ['Better suggestion'] }],
+    })
+    const result = parseCritiqueResponse(raw)
+    expect(result.corrections[0].suggestions).toEqual(['Better suggestion'])
+    expect(result.corrections[0].feedback).toBeUndefined()
+  })
+
+  it('parses topActions when present', () => {
+    const raw = JSON.stringify({
+      corrections: [],
+      topActions: ['New action 1', 'New action 2', 'New action 3'],
+    })
+    const result = parseCritiqueResponse(raw)
+    expect(result.topActions).toEqual(['New action 1', 'New action 2', 'New action 3'])
+  })
+
+  it('parses topIntro when present', () => {
+    const raw = JSON.stringify({
+      corrections: [],
+      topIntro: 'Here are some targeted improvements:',
+    })
+    const result = parseCritiqueResponse(raw)
+    expect(result.topIntro).toBe('Here are some targeted improvements:')
+  })
+
+  it('strips markdown code fences before parsing', () => {
+    const raw = '```json\n' + JSON.stringify({ corrections: [] }) + '\n```'
+    const result = parseCritiqueResponse(raw)
+    expect(result.corrections).toHaveLength(0)
+  })
+
+  it('returns empty corrections if corrections field is missing', () => {
+    const raw = JSON.stringify({ topIntro: 'Only intro' })
+    const result = parseCritiqueResponse(raw)
+    expect(result.corrections).toHaveLength(0)
+  })
+})
+
+describe('mergeCorrections', () => {
+  it('returns result unchanged when corrections is empty', () => {
+    const result = mergeCorrections(baseResult, { corrections: [] })
+    expect(result.checks[0].feedback).toBe('Original date feedback')
+    expect(result.topActions).toEqual(['Action 1', 'Action 2', 'Action 3'])
+    expect(result.topIntro).toBe('Original intro')
+  })
+
+  it('merges feedback only — leaves suggestions unchanged', () => {
+    const result = mergeCorrections(baseResult, {
+      corrections: [{ checkId: 'date-consistency', feedback: 'Fixed feedback' }],
+    })
+    const check = result.checks.find((c) => c.id === 'date-consistency')!
+    expect(check.feedback).toBe('Fixed feedback')
+    expect(check.suggestions).toEqual(['Original suggestion'])
+  })
+
+  it('merges suggestions only — leaves feedback unchanged', () => {
+    const result = mergeCorrections(baseResult, {
+      corrections: [{ checkId: 'date-consistency', suggestions: ['Fixed suggestion'] }],
+    })
+    const check = result.checks.find((c) => c.id === 'date-consistency')!
+    expect(check.suggestions).toEqual(['Fixed suggestion'])
+    expect(check.feedback).toBe('Original date feedback')
+  })
+
+  it('merges both feedback and suggestions', () => {
+    const result = mergeCorrections(baseResult, {
+      corrections: [{ checkId: 'date-consistency', feedback: 'Fixed', suggestions: ['Fixed s'] }],
+    })
+    const check = result.checks.find((c) => c.id === 'date-consistency')!
+    expect(check.feedback).toBe('Fixed')
+    expect(check.suggestions).toEqual(['Fixed s'])
+  })
+
+  it('leaves uncorrected checks intact', () => {
+    const result = mergeCorrections(baseResult, {
+      corrections: [{ checkId: 'date-consistency', feedback: 'Fixed' }],
+    })
+    const buzzwords = result.checks.find((c) => c.id === 'buzzwords')!
+    expect(buzzwords.feedback).toBe('Buzzword feedback')
+  })
+
+  it('replaces topActions when provided', () => {
+    const result = mergeCorrections(baseResult, {
+      corrections: [],
+      topActions: ['New 1', 'New 2', 'New 3'],
+    })
+    expect(result.topActions).toEqual(['New 1', 'New 2', 'New 3'])
+  })
+
+  it('leaves topActions unchanged when absent from corrections', () => {
+    const result = mergeCorrections(baseResult, { corrections: [] })
+    expect(result.topActions).toEqual(['Action 1', 'Action 2', 'Action 3'])
+  })
+
+  it('replaces topIntro when provided', () => {
+    const result = mergeCorrections(baseResult, {
+      corrections: [],
+      topIntro: 'New intro',
+    })
+    expect(result.topIntro).toBe('New intro')
+  })
+
+  it('leaves topIntro unchanged when absent from corrections', () => {
+    const result = mergeCorrections(baseResult, { corrections: [] })
+    expect(result.topIntro).toBe('Original intro')
+  })
+
+  it('ignores corrections for unknown checkIds', () => {
+    const result = mergeCorrections(baseResult, {
+      corrections: [{ checkId: 'nonexistent', feedback: 'Should be ignored' }],
+    })
+    expect(result.checks).toHaveLength(2)
+    expect(result.checks[0].feedback).toBe('Original date feedback')
+  })
+})
