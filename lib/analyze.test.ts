@@ -269,6 +269,19 @@ describe('parseCritiqueResponse', () => {
     const result = parseCritiqueResponse(raw)
     expect(result.corrections).toHaveLength(0)
   })
+
+  it('returns empty corrections on invalid JSON', () => {
+    expect(parseCritiqueResponse('not valid json {')).toEqual({ corrections: [] })
+  })
+
+  it('filters non-string values out of topActions', () => {
+    const raw = JSON.stringify({
+      corrections: [],
+      topActions: ['valid', 42, null],
+    })
+    const result = parseCritiqueResponse(raw)
+    expect(result.topActions).toEqual(['valid'])
+  })
 })
 
 describe('mergeCorrections', () => {

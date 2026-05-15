@@ -122,7 +122,12 @@ interface CritiqueCorrections {
 
 export function parseCritiqueResponse(rawText: string): CritiqueCorrections {
   const raw = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
-  const parsed = JSON.parse(raw) as Record<string, unknown>
+  let parsed: Record<string, unknown>
+  try {
+    parsed = JSON.parse(raw) as Record<string, unknown>
+  } catch {
+    return { corrections: [] }
+  }
 
   const corrections: CheckCorrection[] = Array.isArray(parsed.corrections)
     ? (parsed.corrections as unknown[])
@@ -139,8 +144,9 @@ export function parseCritiqueResponse(rawText: string): CritiqueCorrections {
 
   const result: CritiqueCorrections = { corrections }
 
-  if (Array.isArray(parsed.topActions) && (parsed.topActions as unknown[]).length > 0) {
-    result.topActions = (parsed.topActions as unknown[]).filter((a): a is string => typeof a === 'string')
+  if (Array.isArray(parsed.topActions)) {
+    const filtered = (parsed.topActions as unknown[]).filter((a): a is string => typeof a === 'string')
+    if (filtered.length > 0) result.topActions = filtered
   }
 
   if (typeof parsed.topIntro === 'string' && parsed.topIntro.length > 0) {
