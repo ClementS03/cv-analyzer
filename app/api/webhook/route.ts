@@ -23,17 +23,20 @@ export async function POST(req: NextRequest) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
     const analysisId = session.metadata?.analysisId
-    const email = session.customer_details?.email
 
-    console.log('analysisId:', analysisId, 'email:', email)
-
-    if (!analysisId || !email) {
+    if (!analysisId) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
     }
 
     const stored = await getAnalysis(analysisId)
-    console.log('stored:', stored ? 'found' : 'NOT FOUND')
     if (!stored) {
+      return NextResponse.json({ received: true })
+    }
+
+    const email = stored.userEmail ?? session.customer_details?.email
+    if (!email) {
+      console.error('No email available for analysis', analysisId)
+      await markAnalysisPaid(analysisId, session.id)
       return NextResponse.json({ received: true })
     }
 

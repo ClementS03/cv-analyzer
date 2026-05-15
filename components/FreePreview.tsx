@@ -23,16 +23,21 @@ const LEVEL_COLOR: Record<string, string> = {
 export function FreePreview({ id, score, level, previewChecks, totalChecks }: FreePreviewProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
   const lockedCount = totalChecks - previewChecks.length
 
   const handlePay = async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Entre une adresse email valide pour recevoir ton rapport.')
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysisId: id }),
+        body: JSON.stringify({ analysisId: id, email }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -81,12 +86,19 @@ export function FreePreview({ id, score, level, previewChecks, totalChecks }: Fr
           ))}
         </div>
         <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[2px] rounded-lg">
-          <div className="text-center space-y-3 px-4">
+          <div className="text-center space-y-3 px-4 w-full max-w-sm">
             <p className="font-medium text-gray-700">+ {lockedCount} checks masqués</p>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ton@email.com"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
             <button
               onClick={handlePay}
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
             >
               {isLoading ? 'Redirection…' : 'Voir le rapport complet — 5€'}
             </button>
