@@ -140,4 +140,22 @@ describe('parseAnalysisResponse shape validation', () => {
     })
     expect(() => parseAnalysisResponse(raw)).toThrow('topActions must be an array')
   })
+
+  it('rejects checks containing null elements', () => {
+    const raw = JSON.stringify({
+      language: 'en', topIntro: 'hi',
+      checks: [null],
+      topActions: ['a'],
+    })
+    expect(() => parseAnalysisResponse(raw)).toThrow('each check must be an object')
+  })
+
+  it('rejects checks with non-numeric score', () => {
+    const raw = JSON.stringify({
+      language: 'en', topIntro: 'hi',
+      checks: [{ ...mockCheck, score: 'high' }],
+      topActions: ['a'],
+    })
+    expect(() => parseAnalysisResponse(raw)).toThrow('each check must have a numeric score')
+  })
 })

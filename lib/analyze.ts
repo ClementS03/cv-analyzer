@@ -77,6 +77,14 @@ export function parseAnalysisResponse(rawText: string): AnalysisResult {
 
   const language: CVLanguage = parsed.language === 'en' ? 'en' : 'fr'
   const checks = parsed.checks as Check[]
+  for (const check of checks) {
+    if (typeof check !== 'object' || check === null) {
+      throw new Error('Invalid response: each check must be an object')
+    }
+    if (typeof (check as unknown as Record<string, unknown>).score !== 'number') {
+      throw new Error('Invalid response: each check must have a numeric score')
+    }
+  }
   const topActions = (parsed.topActions as (string | { action?: string; rank?: number; impact?: string })[]).map((a) =>
     typeof a === 'string' ? a : (a.action ?? JSON.stringify(a))
   )
@@ -127,7 +135,8 @@ const MOCK_RESULT: AnalysisResult = {
 }
 
 function buildUserPrompt(cvText: string): string {
-  return `<cv_content>\n${cvText.slice(0, 8000)}\n</cv_content>\n\nAnalyse the CV above.`
+  const safe = cvText.slice(0, 8000).replace(/<\/cv_content>/gi, '')
+  return `<cv_content>\n${safe}\n</cv_content>\n\nAnalyse the CV above.`
 }
 
 export async function analyzeCV(cvText: string): Promise<AnalysisResult> {
