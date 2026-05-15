@@ -249,6 +249,26 @@ describe('parseCritiqueResponse', () => {
     const result = parseCritiqueResponse(raw)
     expect(result.corrections).toHaveLength(0)
   })
+
+  it('does not include topActions when array is empty', () => {
+    const raw = JSON.stringify({ corrections: [], topActions: [] })
+    const result = parseCritiqueResponse(raw)
+    expect(result.topActions).toBeUndefined()
+  })
+
+  it('does not include topIntro when string is empty', () => {
+    const raw = JSON.stringify({ corrections: [], topIntro: '' })
+    const result = parseCritiqueResponse(raw)
+    expect(result.topIntro).toBeUndefined()
+  })
+
+  it('filters out corrections with empty checkId', () => {
+    const raw = JSON.stringify({
+      corrections: [{ checkId: '', feedback: 'Should be filtered' }],
+    })
+    const result = parseCritiqueResponse(raw)
+    expect(result.corrections).toHaveLength(0)
+  })
 })
 
 describe('mergeCorrections', () => {
