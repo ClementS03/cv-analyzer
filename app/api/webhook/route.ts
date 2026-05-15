@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true })
     }
 
-    const email = stored.userEmail ?? session.customer_details?.email
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const candidates = [stored.userEmail, session.customer_details?.email]
+    const email = candidates.find(e => e && e.length <= 254 && EMAIL_RE.test(e))
     if (!email) {
       console.error('No email available for analysis', analysisId)
       await markAnalysisPaid(analysisId, session.id)

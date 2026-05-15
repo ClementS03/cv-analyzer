@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (email && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       await storeUserEmail(analysisId, email.toLowerCase().trim())
     }
 
