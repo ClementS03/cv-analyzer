@@ -53,6 +53,43 @@ Additional JSON fields:
 
 Respond ONLY with valid JSON. No markdown, no explanation.`
 
+const CRITIQUE_PROMPT = `You are a quality reviewer for CV analysis feedback. You receive a CV text and an analysis. Your job: identify and correct specific problems only.
+
+Check for THREE types of issues in the feedback, suggestions, topActions, and topIntro fields:
+
+1. FACTUAL ERRORS
+   - Sequential date ranges (gap between entries) incorrectly described as "overlapping"
+   - MM/YYYY format suggested for an English-language CV (wrong convention — use Month YYYY)
+   - Metrics or achievements cited that do not appear in the CV text
+
+2. TONE ISSUES
+   - Feedback that sounds judgmental, preachy, or condescending
+   - Phrasing that implies the candidate is careless or naive
+   - Any wording that would discourage someone who spent hours on their CV
+
+3. UNREALISTIC SUGGESTIONS
+   - Actions requiring information not present in the CV
+   - Suggestions that would take more than an hour to complete
+   - Anything asking the candidate to change past facts
+
+OUTPUT RULES:
+- If NO problems are found, return exactly: {"corrections":[]}
+- If problems ARE found, return ONLY the corrected fields:
+
+{
+  "corrections": [
+    {
+      "checkId": "exact-id-from-analysis",
+      "feedback": "rewritten feedback (only if feedback has a problem)",
+      "suggestions": ["rewritten suggestion"] // only if suggestions have a problem
+    }
+  ],
+  "topActions": ["action 1", "action 2", "action 3"], // only if ANY action has a problem — replace all 3
+  "topIntro": "rewritten intro" // only if intro has a problem
+}
+
+Omit any field that does not need correction. Return ONLY valid JSON, no markdown.`
+
 export function scoreToLevel(score: number, language: CVLanguage): string {
   if (language === 'en') {
     if (score >= 75) return 'Excellent'
@@ -175,6 +212,28 @@ export function mergeCorrections(result: AnalysisResult, corrections: CritiqueCo
   }
 }
 
+async function critiqueAnalysis(cvText: string, result: AnalysisResult): Promise<CritiqueCorrections> {
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1000,
+    temperature: 0,
+    system: CRITIQUE_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `<cv_content>\n${cvText.slice(0, 4000)}\n</cv_content>\n\n<analysis>\n${JSON.stringify(result)}\n</analysis>\n\nReview the analysis for the three issue types. Return corrections only.`,
+      },
+    ],
+  })
+
+  const content = message.content[0]
+  if (content.type !== 'text') {
+    throw new Error('Unexpected response from Claude critique')
+  }
+
+  return parseCritiqueResponse(content.text)
+}
+
 const MOCK_RESULT: AnalysisResult = {
   language: 'fr',
   score: 67,
@@ -225,5 +284,13 @@ export async function analyzeCV(cvText: string): Promise<AnalysisResult> {
     throw new Error('Unexpected response from Claude')
   }
 
-  return parseAnalysisResponse(content.text)
+  const result = parseAnalysisResponse(content.text)
+
+  try {
+    const corrections = await critiqueAnalysis(cvText, result)
+    return mergeCorrections(result, corrections)
+  } catch (err) {
+    console.error('[critique] failed, returning original result:', err)
+    return result
+  }
 }
