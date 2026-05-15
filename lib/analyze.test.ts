@@ -274,13 +274,22 @@ describe('parseCritiqueResponse', () => {
     expect(parseCritiqueResponse('not valid json {')).toEqual({ corrections: [] })
   })
 
-  it('filters non-string values out of topActions', () => {
+  it('filters non-string values out of topActions and ignores result if fewer than 3', () => {
     const raw = JSON.stringify({
       corrections: [],
       topActions: ['valid', 42, null],
     })
     const result = parseCritiqueResponse(raw)
-    expect(result.topActions).toEqual(['valid'])
+    expect(result.topActions).toBeUndefined()
+  })
+
+  it('ignores topActions if fewer than 3 string elements', () => {
+    const raw = JSON.stringify({
+      corrections: [],
+      topActions: ['Only one action'],
+    })
+    const result = parseCritiqueResponse(raw)
+    expect(result.topActions).toBeUndefined()
   })
 })
 

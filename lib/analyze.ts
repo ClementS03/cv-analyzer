@@ -53,7 +53,7 @@ Additional JSON fields:
 
 Respond ONLY with valid JSON. No markdown, no explanation.`
 
-const CRITIQUE_PROMPT = `You are a quality reviewer for CV analysis feedback. You receive a CV text and an analysis. Your job: identify and correct specific problems only.
+const CRITIQUE_PROMPT = `You are a quality reviewer for CV analysis feedback. You receive a CV text and an analysis. Your job: identify and correct specific problems only. Write all corrected text in the same language as the original CV (match the detected language from the analysis).
 
 Check for THREE types of issues in the feedback, suggestions, topActions, and topIntro fields:
 
@@ -76,16 +76,18 @@ OUTPUT RULES:
 - If NO problems are found, return exactly: {"corrections":[]}
 - If problems ARE found, return ONLY the corrected fields:
 
+Include "topActions" (all 3 strings) only if any action has a problem. Include "topIntro" only if the intro has a problem. Omit optional fields entirely if they are correct.
+
 {
   "corrections": [
     {
       "checkId": "exact-id-from-analysis",
       "feedback": "rewritten feedback (only if feedback has a problem)",
-      "suggestions": ["rewritten suggestion"] // only if suggestions have a problem
+      "suggestions": ["rewritten suggestion"]
     }
   ],
-  "topActions": ["action 1", "action 2", "action 3"], // only if ANY action has a problem — replace all 3
-  "topIntro": "rewritten intro" // only if intro has a problem
+  "topActions": ["action 1", "action 2", "action 3"],
+  "topIntro": "rewritten intro"
 }
 
 Omit any field that does not need correction. Return ONLY valid JSON, no markdown.`
@@ -183,7 +185,7 @@ export function parseCritiqueResponse(rawText: string): CritiqueCorrections {
 
   if (Array.isArray(parsed.topActions)) {
     const filtered = (parsed.topActions as unknown[]).filter((a): a is string => typeof a === 'string')
-    if (filtered.length > 0) result.topActions = filtered
+    if (filtered.length === 3) result.topActions = filtered
   }
 
   if (typeof parsed.topIntro === 'string' && parsed.topIntro.length > 0) {
@@ -221,7 +223,7 @@ async function critiqueAnalysis(cvText: string, result: AnalysisResult): Promise
     messages: [
       {
         role: 'user',
-        content: `<cv_content>\n${cvText.slice(0, 4000)}\n</cv_content>\n\n<analysis>\n${JSON.stringify(result)}\n</analysis>\n\nReview the analysis for the three issue types. Return corrections only.`,
+        content: `<cv_content>\n${cvText.slice(0, 8000)}\n</cv_content>\n\n<analysis>\n${JSON.stringify(result)}\n</analysis>\n\nReview the analysis for the three issue types. Return corrections only.`,
       },
     ],
   })
