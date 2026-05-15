@@ -23,10 +23,12 @@ export async function GET(
       )
     }
 
-    if (analysis.paidAt) {
+    // If paid and sessionId matches the one used to pay — serve immediately
+    if (analysis.paidAt && analysis.paidSessionId === sessionId) {
       return NextResponse.json(analysis.result)
     }
 
+    // Otherwise verify live with Stripe API
     const isPaid = await verifyPayment(sessionId, id)
     if (!isPaid) {
       return NextResponse.json({ error: 'Paiement non confirmé' }, { status: 402 })

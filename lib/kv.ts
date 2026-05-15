@@ -11,8 +11,14 @@ export async function getAnalysis(id: string): Promise<StoredAnalysis | null> {
   return kv.get<StoredAnalysis>(`analysis:${id}`)
 }
 
-export async function markAnalysisPaid(id: string): Promise<void> {
+export async function markAnalysisPaid(id: string, sessionId: string): Promise<void> {
   const analysis = await getAnalysis(id)
   if (!analysis) throw new Error('Analyse introuvable ou expirée')
-  await storeAnalysis(id, { ...analysis, paidAt: Date.now() })
+  await storeAnalysis(id, { ...analysis, paidAt: Date.now(), paidSessionId: sessionId })
+}
+
+export async function storeUserEmail(id: string, email: string): Promise<void> {
+  const analysis = await getAnalysis(id)
+  if (!analysis) return
+  await storeAnalysis(id, { ...analysis, userEmail: email })
 }

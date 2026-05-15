@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     try {
       await Promise.all([
-        markAnalysisPaid(analysisId),
+        markAnalysisPaid(analysisId, session.id),
         sendReportEmail(email, stored.result),
       ])
       console.log('Email sent to', email)

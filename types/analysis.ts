@@ -24,5 +24,7 @@ export interface AnalysisResult {
 export interface StoredAnalysis {
   result: AnalysisResult
   paidAt?: number
+  paidSessionId?: string
+  userEmail?: string
   createdAt: number
 }
